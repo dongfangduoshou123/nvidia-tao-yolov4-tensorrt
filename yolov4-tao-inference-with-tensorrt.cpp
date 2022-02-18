@@ -77,7 +77,9 @@ std::vector<Object> NvDsInferParseCustomBatchedNMSTLT (
         std::vector<std::vector<float>> outputs,
         float threshold,
         int NetworkH,
-        int NetworkW) {
+        int NetworkW,
+        int orig_h,
+        int orig_w, float ratio = 1.0) {
     std::vector<Object>objectList;
     if(outputs.size() != 3)
     {
@@ -110,6 +112,17 @@ std::vector<Object> NvDsInferParseCustomBatchedNMSTLT (
         object.top = CLIP(p_bboxes[4*i+1] * NetworkH, 0, NetworkH - 1);
         object.width = CLIP(p_bboxes[4*i+2] * NetworkW, 0, NetworkW - 1) - object.left;
         object.height = CLIP(p_bboxes[4*i+3] * NetworkH, 0, NetworkH - 1) - object.top;
+        float ratio_w = float(orig_w) / NetworkW;
+        float ratio_h = float(orig_h) / NetworkH;
+//        object.left = object.left * ratio_w;
+//        object.top = object.top * ratio_h;
+//        object.width = object.width * ratio_w;
+//        object.height = object.height * ratio_w;
+
+        object.left = object.left * ratio;
+        object.top = object.top * ratio;
+        object.width = object.width * ratio;
+        object.height = object.height * ratio;
 
         if(object.height < 0 || object.width < 0)
             continue;
@@ -164,6 +177,7 @@ void doInference(IExecutionContext& context, float* input, int batchSize, std::v
     CUDA_CHECK(cudaFree(buffers[4]));
 }
 
+
 int main(int argc, char** argv) {
     cudaSetDevice(DEVICE);
     initLibNvInferPlugins(&gLogger, "");
@@ -199,25 +213,42 @@ int main(int argc, char** argv) {
     std::vector<BindInfo> bindinfos = getBindInfo(engine);
     int fcount = 0;
     std::vector<std::string> file_names;
-    file_names.push_back("/media/wzq/Seagate/ubuntu1604/zhihuiyan/deepModelTraining/TAO/workspace/dataprocess/images/10.jpg");
-    file_names.push_back("/media/wzq/Seagate/ubuntu1604/zhihuiyan/deepModelTraining/TAO/workspace/dataprocess/images/749.jpg");
-    file_names.push_back("/media/wzq/Seagate/ubuntu1604/zhihuiyan/deepModelTraining/TAO/workspace/dataprocess/images/750.jpg");
-    file_names.push_back("/media/wzq/Seagate/ubuntu1604/zhihuiyan/deepModelTraining/TAO/workspace/dataprocess/images/751.jpg");
+    file_names.push_back("/media/wzq/Seagate/ubuntu1604/zhihuiyan/deepModelTraining/TAO/workspace/dataprocess/images/110.jpg");
    
 
     for (auto f: file_names) {
         fcount++;
         std::cout << fcount << "  " << f << std::endl;
         cv::Mat img = cv::imread(f);
+        int orig_w = img.cols;
+        int orig_h = img.rows;
+        float ratio = std::min(INPUT_W / float(orig_w), INPUT_H / float(orig_h));
+        int new_w = int(round(orig_w * ratio));
+        int new_h = int(round(orig_h * ratio));
+        cv::Mat new_img;
+        cv::resize(img, new_img, cv::Size(new_w, new_h));
+        cv::Mat new_imgf;
+        new_img.convertTo(new_imgf, CV_32FC3);
+        cv::Mat model_input = cv::Mat::zeros(INPUT_H, INPUT_W, CV_32FC3);
+//        model_input.setTo(255);
+        cv::Mat A = model_input(cv::Range(0,new_h),cv::Range(0,new_w));
+        new_imgf.copyTo(A);
+        ratio = float(orig_w) / new_w;
+
+
+
+
+
+        cv::Mat rgbimg;
         if (img.empty()) continue;
-        int input_w = img.cols;
-        int input_h = img.rows;
+        cv::cvtColor(img, rgbimg, cv::COLOR_BGR2RGB);
         cv::Mat imgf;
         cv::Mat resized;
         cv::resize(img, resized, cv::Size(INPUT_W, INPUT_H));
         resized.convertTo(imgf,CV_32FC3, 1.0);
+        cv::Mat subed = model_input - cv::Scalar(103.939, 116.779, 123.68);
         std::vector<cv::Mat>channles(3);
-        cv::split(imgf,channles);
+        cv::split(subed,channles);
         std::vector<float>data;
         float* ptr1 = (float*)(channles[0].data);
         float* ptr2 = (float*)(channles[1].data);
@@ -230,8 +261,9 @@ int main(int argc, char** argv) {
         auto start = std::chrono::system_clock::now();
         int output0;
         std::vector<std::vector<float>>other_outputs;
-        doInference(*context,data.data(), 1, bindinfos,output0, other_outputs);
-        std::vector<Object> objs = NvDsInferParseCustomBatchedNMSTLT(output0,other_outputs,0.6, img.rows, img.cols);
+        doInference(*context,(float*)data.data(), 1, bindinfos,output0, other_outputs);
+        std::vector<Object> objs = NvDsInferParseCustomBatchedNMSTLT(output0,other_outputs,0.6, INPUT_H, INPUT_W, img.rows, img.cols,
+                                                                     ratio);
         std::cout << "Detected " << objs.size() << " odfs\n";
         auto end = std::chrono::system_clock::now();
         std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << "ms" << std::endl;

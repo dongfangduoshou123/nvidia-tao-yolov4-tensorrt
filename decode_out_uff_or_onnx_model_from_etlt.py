@@ -121,11 +121,11 @@ with open("./out.onnx", 'wb') as onnxf:
         blob_name = f.read(c[0])
         decode(f, onnxf, key.encode())
 
-input_etlt_model_uff = "the exported model may be uff_encoded_etl"
-with open("./out.uff", 'wb') as ufff:
-    with open(input_etlt_model_uff, 'rb') as f:
-        input_blob_len= f.read(4)
-        c = struct.unpack('<i', input_blob_len)
-        print(c)
-        blob_name = f.read(c[0])
-        decode(f, ufff, key.encode())
+# input_etlt_model_uff = "the exported model may be uff_encoded_etl"
+# with open("./out.uff", 'wb') as ufff:
+#     with open(input_etlt_model_uff, 'rb') as f:
+#         input_blob_len= f.read(4)
+#         c = struct.unpack('<i', input_blob_len)
+#         print(c)
+#         blob_name = f.read(c[0])
+#         decode(f, ufff, key.encode())

@@ -1,0 +1,13 @@
+cuda编成中的thread最终id的计算方法（来自https://blog.csdn.net/u010743448/article/details/110004454）
+下面的解释以这个语句为例来run<<<rgrid, rblock>>>(a, b, c);
+id = blocksize*blockid + threadid;
+1、blocksize的解释：一个block中线程的数量,例如上面的run这个核函数中如果rblock是1D的，那么blocksize = blockDim.x;如果是二维的，那么blocksize = blockDim.x*blockDim.y;如果是三维
+的那么blocksize = blockDim.x * blockDim.y * blockDim.z;
+
+2、blockid的解释:代表这个当前block在整个grid中的id，如果rgird是1D的，那么blockid = blockIdx.x; 如果rgrid是2D的，那么blockid = blockIdx.x + blockIdx.y* gridDim.x; 如果
+rgrid是3D的，那么blockid = blockIdx.x + blockIdx.y* gridDim.x + blockIdx.z * gridDim.x* gridDim.y;
+
+3、blockthreadid的解释:代表这个thread在当前block中的id， 如果block是1D的那么threadid = threadIdx.x;如果rblock是2D的, 那么threadid = threadIdx.x + threadIdx.y*blockDim.x;
+如果block是3D的,那么threadid = threadIdx.x + threadIdx.y* blockDim.x + threadIdx.z * blockDim.x* blockDim.y;
+
+最终的id就等于 1中计算得到的blocksize乘以2中计算得到的blockid 加上3中计算得到的threadid。

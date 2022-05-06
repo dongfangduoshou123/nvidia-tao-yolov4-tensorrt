@@ -11,3 +11,14 @@ rgrid是3D的，那么blockid = blockIdx.x + blockIdx.y* gridDim.x + blockIdx.z 
 如果block是3D的,那么threadid = threadIdx.x + threadIdx.y* blockDim.x + threadIdx.z * blockDim.x* blockDim.y;
 
 最终的id就等于 1中计算得到的blocksize乘以2中计算得到的blockid 加上3中计算得到的threadid。
+
+
+
+int volume = size;
+int block = 512;
+int grid = (volume + block -1) / block;
+
+
+for(int tid = threadIdx.x + blockDim.x*blockIdx.x; tid < volume; tid +=gridDim.x*blockDim.x){
+    
+}
